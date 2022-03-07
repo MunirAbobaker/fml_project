@@ -1,0 +1,15 @@
+tqdm~=4.61.2
+scipy
+numpy
+matplotlib
+numba
+scikit-learn
+tensorflow
+keras
+tensorboardX
+xgboost
+lightgbm
+pathfinding
+pandas
+tdqm
+pygame
