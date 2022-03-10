@@ -21,7 +21,7 @@ def sigmoid(x):
 
 
 ACTIONS = ["UP", "RIGHT", "DOWN", "LEFT", "WAIT", "BOMB"]
-INPUT_SIZE = 1283
+INPUT_SIZE = 995
 OUTPUT_SIZE = len(ACTIONS)
 MAX_HIDDEN = 1000
 INPUT_IDS = list(range(INPUT_SIZE))
@@ -241,7 +241,7 @@ class Population:
         self.env = environment
         for i in range(size):
             g = Genome.fresh()
-            g.mutate(n_times=100)
+            g.mutate(n_times=INPUT_SIZE*OUTPUT_SIZE) # a little too much?
             self.population.append(g)
         self.speciate()
 
