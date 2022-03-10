@@ -231,7 +231,7 @@ def main(argv=None):
         for agent_name in args.agents:
             agents.append((agent_name, len(agents) < args.train))
 
-        world = BombeRLeWorld(args, agents, 10)
+        world = BombeRLeWorld(args, agents, 50)
         every_step = not args.skip_frames
     elif args.command_name == "replay":
         world = ReplayWorld(args)

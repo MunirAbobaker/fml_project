@@ -1,10 +1,10 @@
 import pickle
 from typing import List
 import events as e
-import numpy as np
 
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
+REWARD_ACC_INITIAL = 1
 
 
 def save(population, filename):
@@ -20,7 +20,7 @@ def setup_training(self):
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
     # initialized to 1, otherwise we get zero divison errors when computing stuff with fitnesses of genomes
-    self.reward_accumulator = 1000
+    self.reward_accumulator = REWARD_ACC_INITIAL
 
 
 def game_events_occurred(
@@ -65,13 +65,13 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.logger.debug(
         f'Encountered event(s) {", ".join(map(repr, events))} in final step'
     )
-    if e.GOT_KILLED in events:
-        self.reward_accumulator /= 2
-    self.neat_population.focused_sample().fitness = self.reward_accumulator
+    self.neat_population.focused_sample().fitness = max(
+        self.reward_accumulator, REWARD_ACC_INITIAL
+    )
     self.neat_population.iterate()
     if self.neat_population.population_iterator == 0:
         save(self.neat_population, "pickle")
-    self.reward_accumulator = 1000
+    self.reward_accumulator = REWARD_ACC_INITIAL
 
 
 def reward_from_events(self, events: List[str]) -> int:
@@ -84,8 +84,12 @@ def reward_from_events(self, events: List[str]) -> int:
     game_rewards = {
         e.COIN_COLLECTED: 100,
         e.KILLED_OPPONENT: 500,
-        e.INVALID_ACTION: -7,
-        e.WAITED: -5,
+        # e.INVALID_ACTION: -3,
+        e.MOVED_DOWN: 5,
+        e.MOVED_UP: 5,
+        e.MOVED_LEFT: 5,
+        e.MOVED_RIGHT: 5,
+        e.BOMB_DROPPED: 5,
     }
     reward_sum = 0
     for event in events:

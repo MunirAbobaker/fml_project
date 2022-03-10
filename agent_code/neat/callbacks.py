@@ -51,7 +51,8 @@ def setup(self):
     try:
         self.neat_population = load("pickle")
     except FileNotFoundError:
-        self.neat_population = neat.Population(10, environment=self)
+        self.neat_population = neat.Population(50, environment=self)
+        save(self.neat_population, "pickle")
 
 
 def act(self, game_state):
@@ -67,7 +68,9 @@ def act(self, game_state):
     _, score, can_bomb, agent_position = game_state["self"]
     need_h_flip = agent_position[0] > 8
     need_v_flip = agent_position[1] > 8
-    agent_position = [agent_position] # pack it into array for concatenation and convinience
+    agent_position = [
+        agent_position
+    ]  # pack it into array for concatenation and convinience
 
     bombs_map = [xy for (xy, t) in game_state["bombs"]]
     others_map = [xy for (n, s, b, xy) in game_state["others"]]
@@ -127,17 +130,22 @@ def coordinates_to_field(coordinates):
         base[coord[0] * 17 + coord[1]] = 1
     return squeeze_field(base)
 
+
 def h_flip_coordinates(coordinates):
     return [h_flip_tuple(t) for t in coordinates]
+
 
 def v_flip_coordinates(coordinates):
     return [v_flip_tuple(t) for t in coordinates]
 
+
 def h_flip_tuple(coord_tuple):
-    return (17-coord_tuple[0], coord_tuple[1])
+    return (17 - coord_tuple[0], coord_tuple[1])
+
 
 def v_flip_tuple(coord_tuple):
-    return (coord_tuple[0], 17-coord_tuple[1])
+    return (coord_tuple[0], 17 - coord_tuple[1])
+
 
 def squeeze_field(field: np.ndarray):
     return np.compress(field_grid_inverse, field)

@@ -16,14 +16,15 @@ class InnovationGenerator:
 innovation_generator = InnovationGenerator()
 
 
-def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
+def sigmoid(z):
+    z = max(-60.0, min(60.0, 5.0 * z))
+    return 1.0 / (1.0 + math.exp(-z))
 
 
 ACTIONS = ["UP", "RIGHT", "DOWN", "LEFT", "WAIT", "BOMB"]
 INPUT_SIZE = 995
 OUTPUT_SIZE = len(ACTIONS)
-MAX_HIDDEN = 1000
+MAX_HIDDEN = 2000
 INPUT_IDS = list(range(INPUT_SIZE))
 OUTPUT_IDS = list(range(INPUT_SIZE + MAX_HIDDEN, INPUT_SIZE + MAX_HIDDEN + OUTPUT_SIZE))
 ACTIVATION = sigmoid
@@ -111,6 +112,10 @@ class Genome:
                 connection.weight = np.random.random() * 2 - 1
             else:
                 connection.weight += np.random.normal(scale=0.5) / 10
+            if connection.weight > 1:
+                connection.weight = 1
+            elif connection.weight < -1:
+                connection.weight = -1
 
     def add_connection(self):
         from_candidates = INPUT_IDS + self.get_hidden_nodes_ids()
@@ -241,7 +246,7 @@ class Population:
         self.env = environment
         for i in range(size):
             g = Genome.fresh()
-            g.mutate(n_times=INPUT_SIZE*OUTPUT_SIZE) # a little too much?
+            g.mutate(n_times=INPUT_SIZE * OUTPUT_SIZE)  # a little too much?
             self.population.append(g)
         self.speciate()
 
@@ -259,18 +264,18 @@ class Population:
         return self.population[self.population_iterator]
 
     def species_total_fitness(self, specie):
-        sum = 0
+        total = 0
         for genome in specie:
-            sum += genome.fitness
-        return sum
+            total += genome.fitness
+        return total
 
     def choose_parent(self, specie):
         # https://en.wikipedia.org/wiki/Fitness_proportionate_selection
         threshold = np.random.random() * self.species_total_fitness(specie)
-        sum = 0
+        total = 0
         for genome in specie:
-            sum += genome.fitness
-            if sum > threshold:
+            total += genome.fitness
+            if total > threshold:
                 return genome
 
     def speciate(self):
@@ -291,9 +296,7 @@ class Population:
         self.species = list(filter(lambda x: x != [], self.species))
 
     def evolve(self):
-        average_fitness = self.species_total_fitness(self.population) / len(
-            self.population
-        )
+        average_fitness = self.species_total_fitness(self.population) / self.size
         self.population = []
         to_produce = self.size
         max_total_fitness = 0  # only used for logging
@@ -302,7 +305,11 @@ class Population:
             _average = total_fitness / len(specie)
             if _average > max_total_fitness:
                 max_total_fitness = _average
-            should_produce = math.ceil(total_fitness / average_fitness) * len(specie)
+            should_produce = (
+                1
+                if (average_fitness == 0)
+                else math.ceil(total_fitness / average_fitness) * len(specie)
+            )
             to_produce -= should_produce
             # if too many individuals have been created, reduce newIndividualsCount to be within the constraints of the population size
             if to_produce < 0:
