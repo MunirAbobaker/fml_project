@@ -21,6 +21,7 @@ def setup_training(self):
     """
     # initialized to 1, otherwise we get zero divison errors when computing stuff with fitnesses of genomes
     self.reward_accumulator = REWARD_ACC_INITIAL
+    self.actions_used = []
 
 
 def game_events_occurred(
@@ -47,6 +48,15 @@ def game_events_occurred(
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
     self.reward_accumulator += reward_from_events(self, events)
+    for event in [
+        e.MOVED_RIGHT,
+        e.MOVED_LEFT,
+        e.MOVED_DOWN,
+        e.MOVED_UP,
+        e.BOMB_DROPPED,
+    ]:
+        if event in events and event not in self.actions_used:
+            self.actions_used.append(event)
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -65,13 +75,18 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.logger.debug(
         f'Encountered event(s) {", ".join(map(repr, events))} in final step'
     )
+
+    # Reward a network for trying different actions
+    self.reward_accumulator += len(self.actions_used) * 100
+
     self.neat_population.focused_sample().fitness = max(
         self.reward_accumulator, REWARD_ACC_INITIAL
     )
     self.neat_population.iterate()
-    if self.neat_population.population_iterator == 0:
+    if self.neat_population.population_iterator == self.neat_population.size - 1:
         save(self.neat_population, "pickle")
     self.reward_accumulator = REWARD_ACC_INITIAL
+    self.actions_used = []
 
 
 def reward_from_events(self, events: List[str]) -> int:
@@ -83,13 +98,13 @@ def reward_from_events(self, events: List[str]) -> int:
     """
     game_rewards = {
         e.COIN_COLLECTED: 100,
-        e.KILLED_OPPONENT: 500,
+        e.KILLED_OPPONENT: 100,
         # e.INVALID_ACTION: -3,
-        e.MOVED_DOWN: 5,
-        e.MOVED_UP: 5,
-        e.MOVED_LEFT: 5,
-        e.MOVED_RIGHT: 5,
-        e.BOMB_DROPPED: 5,
+        e.MOVED_DOWN: 1,
+        e.MOVED_UP: 1,
+        e.MOVED_LEFT: 1,
+        e.MOVED_RIGHT: 1,
+        e.BOMB_DROPPED: 1,
     }
     reward_sum = 0
     for event in events:

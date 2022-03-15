@@ -4,7 +4,7 @@ import pygame
 pygame.init()
 display = pygame.display.set_mode([500, 500])
 
-g = Genome.fresh()
+g = Population.Genome.fresh()
 g.mutate(20)
 
 running = True
