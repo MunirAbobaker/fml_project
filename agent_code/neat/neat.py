@@ -23,12 +23,17 @@ def szudzik_pair(a, b):
     return (a * a) + a + b if a >= b else (b * b) + a
 
 
+# python can not pickle lambda functions, so we gotta define this one for filter >:|
+def non_vestigial(g):
+    return not g.vestigial
+
+
 # Meta params:
 ACTIVATION = sigmoid
 EXCESS_COEFFICIENT = 1  # How important is difference in topology for speciation
 WEIGHT_DIFF_COEFFICIENT = 0.4  # How important is difference in weights for speciation
 DIFFERENCE_THRESHOLD = (
-    1  # The threshold which needs to be exceeded to be put into a new specie
+    3  # The threshold which needs to be exceeded to be put into a new specie
 )
 COMPLETELY_MUTATE_WEIGHT_CHANCE = 0.1  # Chance to randomize the weight instead of slightly modifying it when mutate_weights is triggered
 MUTATE_WEIGHTS_CHANCE = 0.8
@@ -310,13 +315,7 @@ class Population:
             self.innovation += 1
             return self.innovation
 
-    def __init__(
-        self,
-        size,
-        input_size,
-        max_hidden_nodes,
-        output_size,
-    ):
+    def __init__(self, size, input_size, max_hidden_nodes, output_size, logger=None):
         # Configuration
         self.INPUT_SIZE = input_size
         self.MAX_HIDDEN = max_hidden_nodes
@@ -332,6 +331,7 @@ class Population:
         self.size = size
         self.population = []
         self.species = []
+        self.logger = logger
         self.innovation_generator = self.InnovationGenerator(self.INPUT_SIZE)
         for _ in range(size):
             g = Genome.fresh(self)
@@ -385,11 +385,11 @@ class Population:
     def speciate(self):
         for genome in self.population:
             speciated = False
-            for specie in self.species:
-                sample = np.random.choice(specie)
+            for i in range(len(self.species)):
+                sample = np.random.choice(self.species[i])
                 difference = genome.compare(sample)
                 if difference < DIFFERENCE_THRESHOLD:
-                    specie.append(genome)
+                    self.species[i].append(genome)
                     speciated = True
                     break
             if not speciated:
@@ -441,7 +441,7 @@ class Population:
             self.species[i] = sorted(
                 self.species[i], key=lambda x: x.fitness, reverse=True
             )
-            self.species[i] = self.species[i][: max(1, len(self.species[i]) // 2)]
+            self.species[i] = self.species[i][: max(1, len(self.species[i]) // 1)]
             for genome in self.species[i]:
                 # we will only use the best half of each specie for mating
                 average_fitness += genome.fitness
@@ -483,15 +483,16 @@ class Population:
                     offspring.mutate()
                     self.population.append(offspring)
 
+        # You can't .remove() from python list in a for loop, that completely and silently breaks iteration
+        # I have been walking around this bug for days
         for specie in self.species:
             for genome in specie:
                 genome.vestigial = True
 
-        self.forget_dead_species()  # do we need this here? TODO
         self.speciate()
-        for specie in self.species:
-            for genome in specie:
-                if genome.vestigial:
-                    specie.remove(genome)
+        for i in range(len(self.species)):
+            self.species[i] = list(filter(non_vestigial, self.species[i]))
         self.forget_dead_species()
+        if self.logger:
+            self.logger.info("Average fitness reached: {}".format(average_fitness))
         self.pairing_id_to_innovations_map = {}

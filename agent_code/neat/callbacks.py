@@ -1,31 +1,10 @@
+import math
 from multiprocessing.spawn import old_main_modules
 from re import A
 import numpy as np
 import settings as s
 from . import neat
 
-field_grid = np.array(
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]
-).ravel()
-field_grid_inverse = np.isin(field_grid, 0)
 ACTIONS = ["WAIT", "RIGHT", "LEFT", "UP", "DOWN", "BOMB"]
 
 
@@ -41,9 +20,65 @@ def setup(self):
     self.logger.debug("Successfully entered setup code")
     try:
         self.neat_population = neat.load("pickle")
+        self.neat_population.logger = self.logger
     except FileNotFoundError:
-        self.neat_population = neat.Population(150, 995, 2000, len(ACTIONS))
+        self.neat_population = neat.Population(
+            150, 34, 1000, len(ACTIONS), logger=self.logger
+        )
         neat.save(self.neat_population, "pickle")
+
+
+def manhattan(origin, destination):
+    return abs(destination[0] - origin[0]) + abs(destination[1] - origin[1])
+
+
+def euclidean(origin, destination):
+    return math.sqrt(
+        (origin[0] - destination[0]) ** 2 + (origin[1] - destination[1]) ** 2
+    )
+
+
+def compute_valid_moves(agent_position, field):
+    x, y = agent_position[0], agent_position[1]
+    ret = []
+    ret.append((field[x + 1][y] == 0) * 2 - 1)
+    ret.append((field[x - 1][y] == 0) * 2 - 1)
+    ret.append((field[x][y + 1] == 0) * 2 - 1)
+    ret.append((field[x][y - 1] == 0) * 2 - 1)
+    return ret
+
+
+def compute_bomb_appeal(agent_position, field):
+    x, y = agent_position[0], agent_position[1]
+    crates_would_get_bombed = 0
+    for i in range(1, 4):
+        f = field[x + i][y]
+        if f == -1:
+            break
+        else:
+            crates_would_get_bombed += f
+    for i in range(1, 4):
+        f = field[x - i][y]
+        if f == -1:
+            break
+        else:
+            crates_would_get_bombed += f
+    for i in range(1, 4):
+        f = field[x][y + i]
+        if f == -1:
+            break
+        else:
+            crates_would_get_bombed += f
+    for i in range(1, 4):
+        f = field[x][y - i]
+        if f == -1:
+            break
+        else:
+            crates_would_get_bombed += f
+    crates_would_get_bombed /= (
+        12  # that's max number of crates that theoretically could be bombed
+    )
+    return crates_would_get_bombed
 
 
 def act(self, game_state):
@@ -55,38 +90,66 @@ def act(self, game_state):
     what it contains.
     """
 
-    # Gather information about the game state
     _, score, can_bomb, agent_position = game_state["self"]
-    # need_h_flip = agent_position[0] > 9
-    # need_v_flip = agent_position[1] > 9
-    agent_position = [
-        agent_position
-    ]  # pack it into array for concatenation and convinience
 
-    bombs_map = [xy for (xy, t) in game_state["bombs"]]
     others_map = [xy for (n, s, b, xy) in game_state["others"]]
-    coins_map = game_state["coins"]
-    crates_map = np.isin(game_state["field"], 1)
+    bombs_map = [(xy, t) for (xy, t) in game_state["bombs"]]
 
-    crates_map = crates_map.ravel()
-    self_map = coordinates_to_field(agent_position)
-    bombs_map = coordinates_to_field(bombs_map)
-    others_map = coordinates_to_field(others_map)
-    coins_map = coordinates_to_field(coins_map)
+    enemy_features = []  # len 9
+    blank = 3 - len(others_map)
+    for enemy_position in others_map:
+        euc = euclidean(agent_position, enemy_position)
+        sin = (enemy_position[1] - agent_position[1]) / euc
+        cos = (enemy_position[0] - agent_position[0]) / euc
+        enemy_features.append(sin)
+        enemy_features.append(cos)
+        enemy_features.append(manhattan(agent_position, enemy_position) / 28)
+    for i in range(blank):
+        enemy_features += [0, 0, 1]
 
-    meta_features = [
-        can_bomb,
-        1,  # bias fuel
-    ]
+    bomb_features = []  # len 16
+    blank = 4 - len(bombs_map)
+    for bomb_tuple in bombs_map:
+        bomb_position = bomb_tuple[0]
+        t = bomb_tuple[1] / 4
+        euc = euclidean(agent_position, bomb_position)
+        sin = (bomb_position[1] - agent_position[1]) / euc
+        cos = (bomb_position[0] - agent_position[0]) / euc
+        bomb_features.append(sin)
+        bomb_features.append(cos)
+        bomb_features.append(manhattan(agent_position, enemy_position) / 28)
+        bomb_features.append(t)
+    for i in range(blank):
+        bomb_features += [0, 0, 1, 1]
+
+    # len 3
+    nearest_distance = 28
+    nearest_coin = None
+    for coin_position in game_state["coins"]:
+        dist = manhattan(agent_position, coin_position)
+        if dist <= nearest_distance:
+            nearest_coin = coin_position
+            nearest_distance = dist
+    if not nearest_coin:
+        coin_features = [0, 0, 0]
+    else:
+        euc = euclidean(agent_position, coin_position)
+        sin = (nearest_coin[1] - agent_position[1]) / euc
+        cos = (nearest_coin[0] - agent_position[0]) / euc
+        coin_features = [sin, cos, nearest_distance / 28]
+
+    valid_moves = compute_valid_moves(agent_position, game_state["field"])
+
+    # this computes how many boxes will be exploded if we place a bomb now, normalized
+    bomb_appeal = compute_bomb_appeal(agent_position, game_state["field"])
 
     features = np.concatenate(
         (
-            crates_map,
-            self_map,
-            bombs_map,
-            others_map,
-            coins_map,
-            meta_features,
+            enemy_features,
+            bomb_features,
+            coin_features,
+            valid_moves,
+            [bomb_appeal, can_bomb],
         )
     )
     if self.train:
@@ -94,14 +157,3 @@ def act(self, game_state):
     else:
         action = self.neat_population.best_genome().feed_forward(features)
     return ACTIONS[action]
-
-
-def coordinates_to_field(coordinates):
-    base = np.zeros((289))
-    for coord in coordinates:
-        base[coord[0] * 17 + coord[1]] = 1
-    return squeeze_field(base)
-
-
-def squeeze_field(field: np.ndarray):
-    return np.compress(field_grid_inverse, field)
