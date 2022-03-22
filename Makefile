@@ -24,7 +24,7 @@ task_1_with_gui:
 #task_2:
  	#python main.py play --no-gui --agents my_agent --train 1 --scenario classic
 
-#task_3:
+task_3:
 		python main.py play --no-gui --agents my_agent peaceful_agent coin_collector_agent --train 1 --scenario classic
 
 #task4:
