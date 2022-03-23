@@ -117,7 +117,7 @@ def act(self, game_state):
         cos = (bomb_position[0] - agent_position[0]) / euc
         bomb_features.append(sin)
         bomb_features.append(cos)
-        bomb_features.append(manhattan(agent_position, enemy_position) / 28)
+        bomb_features.append(manhattan(agent_position, bomb_position) / 28)
         bomb_features.append(t)
     for i in range(blank):
         bomb_features += [0, 0, 1, 1]
@@ -131,14 +131,21 @@ def act(self, game_state):
             nearest_coin = coin_position
             nearest_distance = dist
     if not nearest_coin:
-        coin_features = [0, 0, 0]
+        coin_features = [0, 0, 1]
     else:
         euc = euclidean(agent_position, coin_position)
         sin = (nearest_coin[1] - agent_position[1]) / euc
         cos = (nearest_coin[0] - agent_position[0]) / euc
         coin_features = [sin, cos, nearest_distance / 28]
 
-    valid_moves = compute_valid_moves(agent_position, game_state["field"])
+    box_and_wall = compute_valid_moves(agent_position, game_state["field"])
+    explosions_blocked = compute_valid_moves(
+        agent_position, game_state["explosion_map"]
+    )
+    valid_moves = []
+    for i in range(4):
+        valid_moves.append(box_and_wall[i] + explosions_blocked[i])
+        valid_moves[i] = 1 if valid_moves[i] == 2 else -1
 
     # this computes how many boxes will be exploded if we place a bomb now, normalized
     bomb_appeal = compute_bomb_appeal(agent_position, game_state["field"])

@@ -34,7 +34,7 @@
                 "--my-agent",
                 "neat",
                 "--scenario",
-                "coin-heaven",
+                "training-ground"
             ]
         },
         {
@@ -50,11 +50,11 @@
                 "1",
                 "--my-agent",
                 "neat",
-                "--scenario",
-                "coin-heaven",
                 "--no-gui",
                 "--n-rounds",
-                "10000000"
+                "10000000",
+                "--scenario",
+                "training-ground"
             ]
         }
     ]

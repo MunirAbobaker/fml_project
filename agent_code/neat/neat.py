@@ -40,6 +40,7 @@ MUTATE_WEIGHTS_CHANCE = 0.8
 ADD_CONNECTION_CHANCE = 0.05
 ADD_NODE_CHANCE = 0.03
 INTERSPECIES_MATING_CHANCE = 0.001
+MUTATION_BASE_AMPLIFIER = 1 / ADD_CONNECTION_CHANCE
 
 
 class NodeGene:
@@ -194,11 +195,12 @@ class Genome:
 
     def mutate_weights(self):
         for connection in self.connectionGenes.values():
-            if np.random.random() < COMPLETELY_MUTATE_WEIGHT_CHANCE:
-                connection.weight = np.random.random() * 2 - 1
-            else:
-                connection.weight += np.random.normal(scale=0.5) / 10
-            connection.weight = clip(connection.weight, -1, 1)
+            if connection.enabled:
+                if np.random.random() < COMPLETELY_MUTATE_WEIGHT_CHANCE:
+                    connection.weight = np.random.random() * 2 - 1
+                else:
+                    connection.weight += np.random.normal(scale=0.5) / 10
+                connection.weight = clip(connection.weight, -1, 1)
 
     def recursive_loop_search(self, origin: int, node: int):
         if node == origin:
@@ -232,6 +234,10 @@ class Genome:
         if not self.connectionGenes:
             return
         old_connection_unique_id = np.random.choice(list(self.connectionGenes.keys()))
+        while not self.connectionGenes[old_connection_unique_id].enabled:
+            old_connection_unique_id = np.random.choice(
+                list(self.connectionGenes.keys())
+            )
         old_connection = self.connectionGenes[old_connection_unique_id]
         old_connection.enabled = False
         new_node = NodeGene()
@@ -272,12 +278,17 @@ class Genome:
         self.nodeGenes = OrderedDict(sorted(self.nodeGenes.items(), key=lambda x: x[0]))
 
     def mutate(self, n_times=1):
+        amplify_mutation = MUTATION_BASE_AMPLIFIER * (
+            1
+            - len(self.connectionGenes)
+            / (self.master_population.INPUT_SIZE * self.master_population.OUTPUT_SIZE)
+        )
         for i in range(n_times):
             if np.random.random() < MUTATE_WEIGHTS_CHANCE:
                 self.mutate_weights()
-            if np.random.random() < ADD_CONNECTION_CHANCE:
+            if np.random.random() < ADD_CONNECTION_CHANCE * amplify_mutation:
                 self.add_connection()
-            if np.random.random() < ADD_NODE_CHANCE:
+            if np.random.random() < ADD_NODE_CHANCE * amplify_mutation:
                 self.add_node()
 
     # To compare topologies of the genomes we use weight difference and number of disjoint and excess nodes
@@ -333,6 +344,7 @@ class Population:
         self.species = []
         self.logger = logger
         self.innovation_generator = self.InnovationGenerator(self.INPUT_SIZE)
+        self.pairing_id_to_innovations_map = {}
         for _ in range(size):
             g = Genome.fresh(self)
             g.mutate()
@@ -341,7 +353,6 @@ class Population:
         # Use ids of the connections on which new hidden nodes are created to not create isometric nodes with different innovation numbers
         # This would defeat the purpose of innovation numbers otherwise. This dict is wiped every generation.
         # Map is {connection pairing id : innovation number assigned to the node}
-        self.pairing_id_to_innovations_map = {}
 
     def iterate(self):
         # once the whole population has tried playing, we can generate new offsprings

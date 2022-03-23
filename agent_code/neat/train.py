@@ -2,6 +2,7 @@ import math
 import pickle
 from typing import List
 import events as e
+from .callbacks import manhattan
 
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
@@ -29,6 +30,8 @@ def setup_training(self):
         e.MOVED_UP: 0,
         e.BOMB_DROPPED: 0,
     }
+    self.step_counter = 0
+    self.last_recorded_position = None
 
 
 def game_events_occurred(
@@ -55,10 +58,22 @@ def game_events_occurred(
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
     self.reward_accumulator += reward_from_events(self, events)
+    if self.step_counter % 5 == 0:
+        self.reward_accumulator += delta_position(self, new_game_state)
 
+    self.step_counter += 1
     for event in events:
         if event in self.actions_used.keys():
             self.actions_used[event] += 1
+
+
+def delta_position(self, game_state):
+    ret = 0
+    current_pos = game_state["self"][3]
+    if self.last_recorded_position != None:
+        ret += manhattan(current_pos, self.last_recorded_position) * 20
+    self.last_recorded_position = current_pos
+    return ret
 
 
 def measure_diversity_of_actions(actions):
@@ -95,6 +110,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     if self.neat_population.population_iterator == self.neat_population.size - 1:
         save(self.neat_population, "pickle")
     self.reward_accumulator = REWARD_ACC_INITIAL
+    self.step_counter = 0
+    self.last_recorded_position = None
     self.actions_used = {
         e.MOVED_RIGHT: 0,
         e.MOVED_LEFT: 0,
@@ -114,18 +131,19 @@ def reward_from_events(self, events: List[str]) -> int:
     game_rewards = {
         e.COIN_COLLECTED: 100,
         e.KILLED_OPPONENT: 100,
+        e.KILLED_SELF: -30,
         e.INVALID_ACTION: -2,
-        e.WAITED: -1,
-        e.MOVED_DOWN: 2,
-        e.MOVED_UP: 2,
-        e.MOVED_LEFT: 2,
-        e.MOVED_RIGHT: 2,
-        e.BOMB_DROPPED: 10,
+        e.WAITED: 0,
+        e.MOVED_DOWN: 0,
+        e.MOVED_UP: 0,
+        e.MOVED_LEFT: 0,
+        e.MOVED_RIGHT: 0,
+        e.BOMB_DROPPED: 30,
         e.SURVIVED_ROUND: 100,
-        e.CRATE_DESTROYED: 10,
-        e.COIN_FOUND: 10,
+        e.CRATE_DESTROYED: 30,
+        e.COIN_FOUND: 30,
     }
-    reward_sum = 0
+    reward_sum = 1
     for event in events:
         if event in game_rewards:
             reward_sum += game_rewards[event]
