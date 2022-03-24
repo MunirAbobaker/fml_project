@@ -23,7 +23,7 @@ def setup(self):
         self.neat_population.logger = self.logger
     except FileNotFoundError:
         self.neat_population = neat.Population(
-            150, 34, 1000, len(ACTIONS), logger=self.logger
+            150, 35, 1000000, len(ACTIONS), logger=self.logger
         )
         neat.save(self.neat_population, "pickle")
 
@@ -97,30 +97,42 @@ def act(self, game_state):
 
     enemy_features = []  # len 9
     blank = 3 - len(others_map)
+    holder = []
     for enemy_position in others_map:
+        t = []
         euc = euclidean(agent_position, enemy_position)
         sin = (enemy_position[1] - agent_position[1]) / euc
         cos = (enemy_position[0] - agent_position[0]) / euc
-        enemy_features.append(sin)
-        enemy_features.append(cos)
-        enemy_features.append(manhattan(agent_position, enemy_position) / 28)
+        t.append(sin)
+        t.append(cos)
+        t.append(1 - manhattan(agent_position, enemy_position) / 28)
+        holder.append(t)
+    holder.sort(key=lambda t: t[2])
+    for t in holder:
+        enemy_features += t
     for i in range(blank):
-        enemy_features += [0, 0, 1]
+        enemy_features += [0, 0, 0]
 
     bomb_features = []  # len 16
     blank = 4 - len(bombs_map)
+    holder = []
     for bomb_tuple in bombs_map:
+        tup = []
         bomb_position = bomb_tuple[0]
         t = bomb_tuple[1] / 4
         euc = euclidean(agent_position, bomb_position)
         sin = (bomb_position[1] - agent_position[1]) / euc
         cos = (bomb_position[0] - agent_position[0]) / euc
-        bomb_features.append(sin)
-        bomb_features.append(cos)
-        bomb_features.append(manhattan(agent_position, bomb_position) / 28)
-        bomb_features.append(t)
+        tup.append(sin)
+        tup.append(cos)
+        tup.append(1 - manhattan(agent_position, bomb_position) / 28)
+        tup.append(t)
+        holder.append(tup)
+    holder.sort(key=lambda t: t[2])
+    for tup in holder:
+        bomb_features += tup
     for i in range(blank):
-        bomb_features += [0, 0, 1, 1]
+        bomb_features += [0, 0, 0, 1]
 
     # len 3
     nearest_distance = 28
@@ -131,12 +143,12 @@ def act(self, game_state):
             nearest_coin = coin_position
             nearest_distance = dist
     if not nearest_coin:
-        coin_features = [0, 0, 1]
+        coin_features = [0, 0, 0]
     else:
         euc = euclidean(agent_position, coin_position)
         sin = (nearest_coin[1] - agent_position[1]) / euc
         cos = (nearest_coin[0] - agent_position[0]) / euc
-        coin_features = [sin, cos, nearest_distance / 28]
+        coin_features = [sin, cos, 1 - nearest_distance / 28]
 
     box_and_wall = compute_valid_moves(agent_position, game_state["field"])
     explosions_blocked = compute_valid_moves(
@@ -156,7 +168,7 @@ def act(self, game_state):
             bomb_features,
             coin_features,
             valid_moves,
-            [bomb_appeal, can_bomb],
+            [bomb_appeal, can_bomb, 1],
         )
     )
     if self.train:

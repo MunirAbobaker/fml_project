@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import pygame
 from numpy import clip
+from . import visualizer
 
 
 def save(population, filename):
@@ -93,10 +94,15 @@ class Genome:
     def visualize(self, surface: pygame.Surface):
         node_size = 10
         padding = 20
+        hidden_count = (
+            len(self.nodeGenes)
+            - self.master_population.INPUT_SIZE
+            - self.master_population.OUTPUT_SIZE
+        )
 
         input_h = math.ceil(math.sqrt(self.master_population.INPUT_SIZE * 2))
         input_w = input_h // 2
-        hidden_h = math.ceil(math.sqrt(self.master_population.MAX_HIDDEN * 2))
+        hidden_h = math.ceil(math.sqrt((hidden_count * 2)))
         hidden_w = hidden_h // 2
         output_h = self.master_population.OUTPUT_SIZE
         output_w = 1
@@ -111,15 +117,20 @@ class Genome:
                     y * (node_size + padding) + padding,
                 )
         hidden_offset = input_w * (node_size + padding) + padding * 5
-        for x in range(hidden_w):
-            for y in range(hidden_h):
-                id = self.master_population.INPUT_SIZE + x * hidden_h + y
-                if id not in self.nodeGenes.keys():
-                    continue
-                positions[id] = (
-                    x * (node_size + padding) + hidden_offset,
-                    y * (node_size + padding) + padding,
-                )
+
+        hidden_iterator_w = 0
+        hidden_iterator_h = 0
+
+        for id in self.get_hidden_nodes_ids():
+            positions[id] = (
+                hidden_iterator_w * (node_size + padding) + hidden_offset,
+                hidden_iterator_h * (node_size + padding) + padding * 1.5,
+            )
+            hidden_iterator_h += 1
+            if hidden_iterator_h > hidden_h:
+                hidden_iterator_h = 0
+                hidden_iterator_w += 1
+
         output_offset = hidden_offset + hidden_w * (node_size + padding) + padding * 5
         for x in range(output_w):
             for y in range(output_h):
@@ -144,7 +155,7 @@ class Genome:
                     )
                 )
             )
-            pygame.draw.line(
+            pygame.draw.aaline(
                 surface,
                 color,
                 positions[connection.from_],
@@ -216,6 +227,8 @@ class Genome:
         np.random.shuffle(to_candidates)
         for from_candidate in from_candidates:
             for to_candidate in to_candidates:
+                if from_candidate == to_candidate:
+                    continue
                 # now that we have node pair, look for existing connection:
                 # use szudzik's pairing to deterministically hash them and be able to search quickly
                 unique_connection_id = szudzik_pair(from_candidate, to_candidate)
@@ -234,7 +247,11 @@ class Genome:
         if not self.connectionGenes:
             return
         old_connection_unique_id = np.random.choice(list(self.connectionGenes.keys()))
+        _fail_safe = 0
         while not self.connectionGenes[old_connection_unique_id].enabled:
+            _fail_safe += 1
+            if _fail_safe > len(self.connectionGenes) * 5:
+                return
             old_connection_unique_id = np.random.choice(
                 list(self.connectionGenes.keys())
             )
@@ -250,6 +267,8 @@ class Genome:
             ]
         else:
             innovation = self.master_population.innovation_generator.new_id()
+            if innovation > self.master_population.MAX_HIDDEN:
+                raise ValueError("Innovation number exceeded max hidden nodes count")
             self.master_population.pairing_id_to_innovations_map[
                 old_connection_unique_id
             ] = innovation
@@ -283,6 +302,7 @@ class Genome:
             - len(self.connectionGenes)
             / (self.master_population.INPUT_SIZE * self.master_population.OUTPUT_SIZE)
         )
+        amplify_mutation = max(amplify_mutation, 1)
         for i in range(n_times):
             if np.random.random() < MUTATE_WEIGHTS_CHANCE:
                 self.mutate_weights()
@@ -290,6 +310,10 @@ class Genome:
                 self.add_connection()
             if np.random.random() < ADD_NODE_CHANCE * amplify_mutation:
                 self.add_node()
+        for gene in self.nodeGenes.values():
+            gene.incoming_connections = []
+        for connection in self.connectionGenes.values():
+            self.nodeGenes[connection.to_].incoming_connections.append(connection)
 
     # To compare topologies of the genomes we use weight difference and number of disjoint and excess nodes
     # These are computed in parallel for efficiency
@@ -391,6 +415,8 @@ class Population:
                 if genome.fitness > max_fitness:
                     best = genome
                     max_fitness = genome.fitness
+        self.best = best
+        # visualizer.visualize(best)
         return best
 
     def speciate(self):
@@ -494,8 +520,6 @@ class Population:
                     offspring.mutate()
                     self.population.append(offspring)
 
-        # You can't .remove() from python list in a for loop, that completely and silently breaks iteration
-        # I have been walking around this bug for days
         for specie in self.species:
             for genome in specie:
                 genome.vestigial = True
