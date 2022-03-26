@@ -116,11 +116,14 @@ def act(self, game_state):
     bomb_features = []  # len 16
     blank = 4 - len(bombs_map)
     holder = []
+    self.bomb_nearby = False  # used in training
     for bomb_tuple in bombs_map:
         tup = []
         bomb_position = bomb_tuple[0]
         t = bomb_tuple[1] / 4
         euc = euclidean(agent_position, bomb_position)
+        if euc <= 4 and t == 0:
+            self.bomb_nearby = True
         sin = (bomb_position[1] - agent_position[1]) / euc
         cos = (bomb_position[0] - agent_position[0]) / euc
         tup.append(sin)

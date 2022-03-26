@@ -60,6 +60,10 @@ def game_events_occurred(
     self.reward_accumulator += reward_from_events(self, events)
     if self.step_counter % 5 == 0:
         self.reward_accumulator += delta_position(self, new_game_state)
+    if self.bomb_nearby:
+        if e.GOT_KILLED not in events:
+            # survived close bomb explosion
+            self.reward_accumulator += 5000
 
     self.step_counter += 1
     for event in events:
@@ -129,19 +133,19 @@ def reward_from_events(self, events: List[str]) -> int:
     certain behavior.
     """
     game_rewards = {
-        e.COIN_COLLECTED: 500,
-        e.KILLED_OPPONENT: 500,
-        e.KILLED_SELF: -300,
-        e.INVALID_ACTION: -2,
+        e.COIN_COLLECTED: 1000,
+        e.KILLED_OPPONENT: 5000,
+        e.KILLED_SELF: -4950,
+        e.INVALID_ACTION: -1,
         e.WAITED: 0,
         e.MOVED_DOWN: 1,
         e.MOVED_UP: 1,
         e.MOVED_LEFT: 1,
         e.MOVED_RIGHT: 1,
-        e.BOMB_DROPPED: 100,
-        e.SURVIVED_ROUND: 1500,
-        e.CRATE_DESTROYED: 100,
-        e.COIN_FOUND: 100,
+        e.BOMB_DROPPED: 5000,
+        e.SURVIVED_ROUND: 5000,
+        e.CRATE_DESTROYED: 1000,
+        e.COIN_FOUND: 1000,
     }
     reward_sum = 1
     for event in events:

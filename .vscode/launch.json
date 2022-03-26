@@ -34,7 +34,8 @@
                 "--my-agent",
                 "neat",
                 "--scenario",
-                "coin-heaven"
+                "training-ground",
+                //"coin-heaven"
             ]
         },
         {
@@ -54,7 +55,8 @@
                 "--n-rounds",
                 "10000000",
                 "--scenario",
-                "coin-heaven"
+                "training-ground",
+                //"coin-heaven"
             ]
         }
     ]

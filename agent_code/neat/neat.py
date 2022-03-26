@@ -38,9 +38,9 @@ DIFFERENCE_THRESHOLD = (
 )
 COMPLETELY_MUTATE_WEIGHT_CHANCE = 0.1  # Chance to randomize the weight instead of slightly modifying it when mutate_weights is triggered
 MUTATE_WEIGHTS_CHANCE = 0.8
-ADD_CONNECTION_CHANCE = 0.05
-ADD_NODE_CHANCE = 0.03
-INTERSPECIES_MATING_CHANCE = 0.001
+ADD_CONNECTION_CHANCE = 0.10
+ADD_NODE_CHANCE = 0.06
+INTERSPECIES_MATING_CHANCE = 0.010
 MUTATION_BASE_AMPLIFIER = 1 / ADD_CONNECTION_CHANCE
 
 
@@ -383,6 +383,7 @@ class Population:
         self.population_iterator += 1
         if self.population_iterator % self.size == 0:
             self.population_iterator = 0
+            self.size = 300
             self.evolve()
 
     def focused_sample(self) -> Genome:
