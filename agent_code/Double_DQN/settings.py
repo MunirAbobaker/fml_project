@@ -1,0 +1,16 @@
+ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'BOMB', 'WAIT']
+NUMBER_OF_CHANNELS = 3
+MAZE_WIDTH = 17
+MAZE_HEIGHT = 17
+FEATURE_SHAPE = (NUMBER_OF_CHANNELS, MAZE_WIDTH, MAZE_HEIGHT)
+BATCH_SIZE = 1000000#5000
+MEMORY_SIZE = 100_00
+INPUT_DIMENSIONS = (BATCH_SIZE, NUMBER_OF_CHANNELS, MAZE_WIDTH, MAZE_HEIGHT)
+BURENING = 1e4  # min. experiences before training
+LEARN_EVERY = 3  # no. of experiences between updates to Q_online
+SYNC_EVERY = 1e4  # no. of experiences between Q_target & Q_online sync
+SAVE_EVERY = 5e5  # no. of experiences between saving Q_eval
+EXPLORATION_RATE = 0.01
+EXPLORATION_RATE_DECAY = 0.99999975
+EXPLORATION_RATE_MIN = 0.1
+
