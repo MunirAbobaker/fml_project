@@ -23,7 +23,7 @@ def setup(self):
         self.neat_population.logger = self.logger
     except FileNotFoundError:
         self.neat_population = neat.Population(
-            150, 35, 1000000, len(ACTIONS), logger=self.logger
+            250, 35, 1000000, len(ACTIONS), logger=self.logger
         )
         neat.save(self.neat_population, "pickle")
 
@@ -101,8 +101,8 @@ def act(self, game_state):
     for enemy_position in others_map:
         t = []
         euc = euclidean(agent_position, enemy_position)
-        sin = (enemy_position[1] - agent_position[1]) / euc
-        cos = (enemy_position[0] - agent_position[0]) / euc
+        sin = (enemy_position[1] - agent_position[1]) / euc if euc != 0 else 0
+        cos = (enemy_position[0] - agent_position[0]) / euc if euc != 0 else 0
         t.append(sin)
         t.append(cos)
         t.append(1 - manhattan(agent_position, enemy_position) / 28)
@@ -120,12 +120,12 @@ def act(self, game_state):
     for bomb_tuple in bombs_map:
         tup = []
         bomb_position = bomb_tuple[0]
-        t = bomb_tuple[1] / 4
+        t = 1 - bomb_tuple[1] / 4
         euc = euclidean(agent_position, bomb_position)
         if euc <= 4 and t == 0:
             self.bomb_nearby = True
-        sin = (bomb_position[1] - agent_position[1]) / euc
-        cos = (bomb_position[0] - agent_position[0]) / euc
+        sin = (bomb_position[1] - agent_position[1]) / euc if euc != 0 else 0
+        cos = (bomb_position[0] - agent_position[0]) / euc if euc != 0 else 0
         tup.append(sin)
         tup.append(cos)
         tup.append(1 - manhattan(agent_position, bomb_position) / 28)
@@ -149,8 +149,8 @@ def act(self, game_state):
         coin_features = [0, 0, 0]
     else:
         euc = euclidean(agent_position, coin_position)
-        sin = (nearest_coin[1] - agent_position[1]) / euc
-        cos = (nearest_coin[0] - agent_position[0]) / euc
+        sin = (nearest_coin[1] - agent_position[1]) / euc if euc != 0 else 0
+        cos = (nearest_coin[0] - agent_position[0]) / euc if euc != 0 else 0
         coin_features = [sin, cos, 1 - nearest_distance / 28]
 
     box_and_wall = compute_valid_moves(agent_position, game_state["field"])

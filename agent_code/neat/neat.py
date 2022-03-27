@@ -34,7 +34,7 @@ ACTIVATION = sigmoid
 EXCESS_COEFFICIENT = 1  # How important is difference in topology for speciation
 WEIGHT_DIFF_COEFFICIENT = 0.4  # How important is difference in weights for speciation
 DIFFERENCE_THRESHOLD = (
-    3  # The threshold which needs to be exceeded to be put into a new specie
+    1.5  # The threshold which needs to be exceeded to be put into a new specie
 )
 COMPLETELY_MUTATE_WEIGHT_CHANCE = 0.1  # Chance to randomize the weight instead of slightly modifying it when mutate_weights is triggered
 MUTATE_WEIGHTS_CHANCE = 0.8
@@ -250,7 +250,7 @@ class Genome:
         _fail_safe = 0
         while not self.connectionGenes[old_connection_unique_id].enabled:
             _fail_safe += 1
-            if _fail_safe > len(self.connectionGenes) * 5:
+            if _fail_safe > len(self.connectionGenes) * 500:
                 return
             old_connection_unique_id = np.random.choice(
                 list(self.connectionGenes.keys())
@@ -383,7 +383,6 @@ class Population:
         self.population_iterator += 1
         if self.population_iterator % self.size == 0:
             self.population_iterator = 0
-            self.size = 300
             self.evolve()
 
     def focused_sample(self) -> Genome:
