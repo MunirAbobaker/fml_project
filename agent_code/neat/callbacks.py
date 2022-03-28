@@ -122,8 +122,6 @@ def act(self, game_state):
         bomb_position = bomb_tuple[0]
         t = 1 - bomb_tuple[1] / 4
         euc = euclidean(agent_position, bomb_position)
-        if euc <= 4 and t == 0:
-            self.bomb_nearby = True
         sin = (bomb_position[1] - agent_position[1]) / euc if euc != 0 else 0
         cos = (bomb_position[0] - agent_position[0]) / euc if euc != 0 else 0
         tup.append(sin)
@@ -135,7 +133,7 @@ def act(self, game_state):
     for tup in holder:
         bomb_features += tup
     for i in range(blank):
-        bomb_features += [0, 0, 0, 1]
+        bomb_features += [0, 0, 0, 0]
 
     # len 3
     nearest_distance = 28
@@ -148,7 +146,7 @@ def act(self, game_state):
     if not nearest_coin:
         coin_features = [0, 0, 0]
     else:
-        euc = euclidean(agent_position, coin_position)
+        euc = euclidean(agent_position, nearest_coin)
         sin = (nearest_coin[1] - agent_position[1]) / euc if euc != 0 else 0
         cos = (nearest_coin[0] - agent_position[0]) / euc if euc != 0 else 0
         coin_features = [sin, cos, 1 - nearest_distance / 28]
