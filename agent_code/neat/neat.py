@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import pygame
 from numpy import clip
+
 from . import visualizer
 
 
@@ -48,6 +49,7 @@ class NodeGene:
     def __init__(self):
         self.state = 0
         self.incoming_connections = []
+        self.processed = False
 
     def deepcopy_dict(arr: OrderedDict):
         copy = OrderedDict()
@@ -181,15 +183,30 @@ class Genome:
     def feed_forward(self, input):
         for i in self.master_population.INPUT_IDS:
             self.nodeGenes[i].state = input[i]
-        # first process only hidden nodes:
-        # we have to do some magic because we don't know how many hidden nodes, and more importnatly - which ids they have
-        for id in self.get_hidden_nodes_ids():
-            state = 0
-            for connection in self.nodeGenes[id].incoming_connections:
-                if connection.enabled:
-                    state += self.nodeGenes[connection.from_].state * connection.weight
-            self.nodeGenes[id].state = ACTIVATION(state)
-        # now only do output nodes, find the argmax
+            self.nodeGenes[i].processed = True
+
+        hidden_pending = True
+        while hidden_pending:
+            hidden_pending = False
+            for id in self.get_hidden_nodes_ids():
+                if not self.nodeGenes[id].processed:
+                    hidden_pending = True
+                    ready_to_process = True
+                    state = 0
+                    for connection in self.nodeGenes[id].incoming_connections:
+                        if connection.enabled:
+                            if not self.nodeGenes[connection.from_].processed:
+                                ready_to_process = False
+                                break
+                            else:
+                                state += (
+                                    self.nodeGenes[connection.from_].state
+                                    * connection.weight
+                                )
+                    if ready_to_process:
+                        self.nodeGenes[id].state = ACTIVATION(state)
+                        self.nodeGenes[id].processed = True
+
         action = 0
         last_action_activation = -math.inf
         for id in self.master_population.OUTPUT_IDS:
@@ -202,6 +219,10 @@ class Genome:
                 last_action_activation = state
                 action = id
         action -= self.master_population.INPUT_SIZE + self.master_population.MAX_HIDDEN
+        # reset processed flags on all nodes:
+        for node in self.nodeGenes.values():
+            node.processed = False
+            node.state = 0
         return action
 
     def mutate_weights(self):
@@ -214,11 +235,14 @@ class Genome:
                 connection.weight = clip(connection.weight, -1, 1)
 
     def recursive_loop_search(self, origin: int, node: int):
+        looped = False
         if node == origin:
-            return True
-        for connection in self.nodeGenes[node].incoming_connections:
-            if connection.from_ >= self.master_population.INPUT_SIZE:
-                return self.recursive_loop_search(origin, connection.from_)
+            looped = True
+        if not looped:
+            for connection in self.nodeGenes[node].incoming_connections:
+                if connection.from_ >= self.master_population.INPUT_SIZE:
+                    looped = self.recursive_loop_search(origin, connection.from_)
+        return looped
 
     def add_connection(self):
         from_candidates = self.master_population.INPUT_IDS + self.get_hidden_nodes_ids()
@@ -296,20 +320,19 @@ class Genome:
         # calling sort on this dictionary SHOULD be O(n) since we only have one element out of place, but we should double check this
         self.nodeGenes = OrderedDict(sorted(self.nodeGenes.items(), key=lambda x: x[0]))
 
-    def mutate(self, n_times=1):
+    def mutate(self):
         amplify_mutation = MUTATION_BASE_AMPLIFIER * (
             1
             - len(self.connectionGenes)
             / (self.master_population.INPUT_SIZE * self.master_population.OUTPUT_SIZE)
         )
         amplify_mutation = max(amplify_mutation, 1)
-        for i in range(n_times):
-            if np.random.random() < MUTATE_WEIGHTS_CHANCE:
-                self.mutate_weights()
-            if np.random.random() < ADD_CONNECTION_CHANCE * amplify_mutation:
-                self.add_connection()
-            if np.random.random() < ADD_NODE_CHANCE * amplify_mutation:
-                self.add_node()
+        if np.random.random() < MUTATE_WEIGHTS_CHANCE:
+            self.mutate_weights()
+        if np.random.random() < ADD_CONNECTION_CHANCE * amplify_mutation:
+            self.add_connection()
+        if np.random.random() < ADD_NODE_CHANCE * amplify_mutation:
+            self.add_node()
         for gene in self.nodeGenes.values():
             gene.incoming_connections = []
         for connection in self.connectionGenes.values():

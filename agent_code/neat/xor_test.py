@@ -21,7 +21,7 @@ def generate_batch(size):
 
 def main():
     pop_size = 50
-    iterations = 10000 - 1
+    iterations = 100000 - 1
     batch_size = 50
     pop = Population(pop_size, 3, 2000, 2)
     batch = []
@@ -42,7 +42,7 @@ def main():
     ins = [[0, 0, 1], [1, 1, 1], [0, 1, 1], [1, 0, 1]]
     outs = [0, 0, 1, 1]
     best = pop.best_genome()
-    visualize(best)
+    # visualize(best)
     for i in range(4):
         print(best.feed_forward(ins[i]) == outs[i])
 

@@ -23,7 +23,7 @@ def setup(self):
         self.neat_population.logger = self.logger
     except FileNotFoundError:
         self.neat_population = neat.Population(
-            250, 35, 1000000, len(ACTIONS), logger=self.logger
+            150, 35, 1000000, len(ACTIONS), logger=self.logger
         )
         neat.save(self.neat_population, "pickle")
 
