@@ -4,7 +4,8 @@ import pickle
 import numpy as np
 import pygame
 from numpy import clip
-from . import visualizer
+
+import visualizer
 
 
 def save(population, filename):
@@ -100,10 +101,14 @@ class Genome:
             - self.master_population.OUTPUT_SIZE
         )
 
-        input_h = math.ceil(math.sqrt(self.master_population.INPUT_SIZE * 2))
-        input_w = input_h // 2
+        if self.master_population.INPUT_SIZE < 17:
+            input_h = self.master_population.INPUT_SIZE
+            input_w = 1
+        else:
+            input_h = math.ceil(math.sqrt(self.master_population.INPUT_SIZE * 2))
+            input_w = math.ceil(input_h / 2)
         hidden_h = math.ceil(math.sqrt((hidden_count * 2)))
-        hidden_w = hidden_h // 2
+        hidden_w = math.ceil(hidden_h / 2)
         output_h = self.master_population.OUTPUT_SIZE
         output_w = 1
 
