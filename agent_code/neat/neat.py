@@ -5,7 +5,6 @@ import numpy as np
 import pygame
 from numpy import clip
 
-from . import visualizer
 
 
 def save(population, filename):
@@ -58,10 +57,12 @@ class NodeGene:
         return copy
 
     def copy(self):
-        c = NodeGene()
-        c.incoming_connections = self.incoming_connections.copy()
-        return c
-
+        node = NodeGene()
+        for connection in self.incoming_connections:
+            c = connection.copy()
+            node.incoming_connections.append(c)
+        return node
+    
 
 class ConnectionGene:
     def __init__(self, from_: int, to_: int, weight: float):
@@ -90,8 +91,7 @@ class Genome:
         self.fitness = 0
         # Bind connections to their output nodes TODO check if we need this actually
         for connection in self.connectionGenes.values():
-            if connection.enabled:
-                self.nodeGenes[connection.to_].incoming_connections.append(connection)
+            self.nodeGenes[connection.to_].incoming_connections.append(connection)
 
     def visualize(self, surface: pygame.Surface):
         node_size = 10
@@ -240,8 +240,9 @@ class Genome:
             looped = True
         if not looped:
             for connection in self.nodeGenes[node].incoming_connections:
-                if connection.from_ >= self.master_population.INPUT_SIZE:
+                if connection.enabled and connection.from_ >= self.master_population.INPUT_SIZE:
                     looped = self.recursive_loop_search(origin, connection.from_)
+                    if looped: break
         return looped
 
     def add_connection(self):
@@ -487,6 +488,10 @@ class Population:
                     or not parent2.connectionGenes[id1].enabled
                 ) and np.random.random() < 0.75:
                     enabled = False
+                if (
+                    not parent1.connectionGenes[id1].enabled
+                    and not parent2.connectionGenes[id1].enabled
+                ): enabled = False
             offspring_connections[id1] = connection_parent.connectionGenes[id1].copy()
             offspring_connections[id1].enabled = enabled
         offspring = Genome(

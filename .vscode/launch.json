@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "XOR test",
+            "name": "Test",
             "type": "python",
             "request": "launch",
             "cwd": "${workspaceFolder}/agent_code/neat",
-            "program": "xor_test.py",
+            "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
         },
